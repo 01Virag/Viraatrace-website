@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Share Live Location</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 2rem; }
+    .card { max-width: 800px; padding: 1.25rem; border: 1px solid #e5e7eb; border-radius: 14px; box-shadow: 0 1px 6px rgba(0,0,0,0.06); }
+    .muted { color: #6b7280; }
+    .pill { display: inline-block; padding: .3rem .6rem; border-radius: 999px; background: #eef2ff; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Share Your Live Location</h2>
+    <p class="muted">This page will ask your browser for permission to share your location with the requester.</p>
+    <p>Token: <span class="pill mono">{{ token }}</span></p>
+
+    <div id="status">Waiting for permission…</div>
+    <ul id="log"></ul>
+  </div>
+
+<script>
+const token = ( token|tojson );
+
+function log(msg) {
+  const li = document.createElement('li');
+  li.textContent = msg;
+  document.getElementById('log').appendChild(li);
+}
+
+async function sendPosition(pos) {
+  const p = {
+    lat: pos.coords.latitude,
+    lng: pos.coords.longitude,
+    accuracy: pos.coords.accuracy,
+    speed: pos.coords.speed,
+    altitude: pos.coords.altitude,
+    heading: pos.coords.heading,
+    timestamp: new Date(pos.timestamp).toISOString()
+  };
+  try {
+    const res = await fetch(`/api/pos/${encodeURIComponent(token)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(p)
+    });
+    const j = await res.json();
+    if (!j.ok) throw new Error(j.error || 'Failed');
+    log(`Sent @ ${p.timestamp} (±${Math.round(p.accuracy||0)} m)`);
+  } catch (e) {
+    log('Error sending position: ' + e.message);
+  }
+}
+
+function onGranted(pos) {
+  document.getElementById('status').textContent = 'Location sharing is ON.';
+  sendPosition(pos);
+  navigator.geolocation.watchPosition(
+    sendPosition,
+    (err) => log('Error: ' + err.message),
+    { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+  );
+}
+
+function onDenied(err) {
+  document.getElementById('status').textContent = 'Location permission denied or unavailable.';
+  log('Error: ' + err.message);
+}
+
+if ('geolocation' in navigator) {
+  navigator.geolocation.getCurrentPosition(onGranted, onDenied, { enableHighAccuracy: true, timeout: 15000 });
+} else {
+  document.getElementById('status').textContent = 'Geolocation is not supported by this browser.';
+}
+</script>
+</body>
+</html>

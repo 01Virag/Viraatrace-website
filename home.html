@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Live Location Link (Demo)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 2rem; }
+    code, input { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+    .card { max-width: 800px; padding: 1.25rem; border: 1px solid #e5e7eb; border-radius: 14px; box-shadow: 0 1px 6px rgba(0,0,0,0.06); }
+    .row { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; }
+    .label { width: 140px; color: #374151; }
+    .muted { color: #6b7280; }
+    .btn { background: black; color: white; border: 0; padding: .6rem .9rem; border-radius: 999px; cursor: pointer; }
+    .input { padding: .5rem .75rem; border-radius: 8px; border: 1px solid #e5e7eb; width: 100%; }
+    .mt { margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Live Location Link — Demo (Flask + HTML)</h2>
+    <p class="muted">Share a tracking link that asks for the visitor’s <em>explicit</em> permission to share their location. Updates stream in real time.</p>
+
+    <div class="mt">
+      <div class="row">
+        <div class="label">Choose a token</div>
+        <input id="token" class="input" placeholder="e.g., virag123" />
+      </div>
+      <div class="mt row">
+        <button class="btn" onclick="build()">Generate links</button>
+      </div>
+      <div id="out" class="mt" style="display:none;">
+        <p><strong>Send this link to the person:</strong><br>
+        <code id="send"></code></p>
+        <p><strong>Open this (only for you) to view:</strong><br>
+        <code id="view"></code></p>
+      </div>
+    </div>
+
+    <hr class="mt">
+    <p class="muted">
+      <strong>Important:</strong> Browsers require user consent before sharing location.
+      Make sure you clearly inform the person what the link does and why.
+    </p>
+  </div>
+
+<script>
+function build() {
+  const t = document.getElementById('token').value.trim();
+  if (!t) { alert('Please enter a token (any string, e.g., your project name).'); return; }
+  const base = `${location.protocol}//${location.host}`;
+  document.getElementById('send').textContent = `${base}/t/${encodeURIComponent(t)}`;
+  document.getElementById('view').textContent = `${base}/view/${encodeURIComponent(t)}`;
+  document.getElementById('out').style.display = 'block';
+}
+</script>
+</body>
+</html>

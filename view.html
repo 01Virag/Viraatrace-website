@@ -1,0 +1,96 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Live Viewer</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="" crossorigin=""></script>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 0; }
+    #top { padding: 1rem 1.25rem; border-bottom: 1px solid #e5e7eb; display: flex; gap: 1rem; align-items: center; justify-content: space-between; }
+    #map { height: calc(100vh - 72px); }
+    .muted { color: #6b7280; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+    .btn { background: black; color: white; border: 0; padding: .5rem .8rem; border-radius: 10px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div id="top">
+    <div>
+      <strong>Viewer</strong>
+      <span class="muted">Token:</span> <span class="mono">{{ token }}</span>
+      <span class="muted" id="meta"></span>
+    </div>
+    <div>
+      <button class="btn" onclick="togglePath()"><span id="pathState">Show</span> path</button>
+      <button class="btn" onclick="refreshNow()">Refresh</button>
+    </div>
+  </div>
+  <div id="map"></div>
+
+<script>
+const token = {{ token|tojson }};
+
+let map, marker, accuracyCircle, pathLine, showPath = false;
+
+function init() {
+  map = L.map('map').setView([20.5937, 78.9629], 5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+}
+
+function setPoint(lat, lng, accuracy) {
+  const p = [lat, lng];
+  if (!marker) {
+    marker = L.marker(p).addTo(map);
+  } else {
+    marker.setLatLng(p);
+  }
+  if (!accuracyCircle) {
+    accuracyCircle = L.circle(p, { radius: accuracy || 0 }).addTo(map);
+  } else {
+    accuracyCircle.setLatLng(p);
+    accuracyCircle.setRadius(accuracy || 0);
+  }
+  map.setView(p, Math.max(map.getZoom(), 14), { animate: true });
+}
+
+async function refreshNow() {
+  const res = await fetch(`/api/last/${encodeURIComponent(token)}`);
+  const j = await res.json();
+  if (j && j.ok && j.last) {
+    const { lat, lng, accuracy, timestamp } = j.last;
+    setPoint(lat, lng, accuracy);
+    document.getElementById('meta').textContent = `Last update: ${new Date(timestamp).toLocaleString()} (±${Math.round(accuracy||0)} m)`;
+    if (showPath) { await drawPath(); }
+  } else {
+    document.getElementById('meta').textContent = 'No data yet…';
+  }
+}
+
+async function drawPath() {
+  const res = await fetch(`/api/path/${encodeURIComponent(token)}`);
+  const j = await res.json();
+  if (!(j && j.ok)) return;
+  const pts = j.path.map(p => [p.lat, p.lng]);
+  if (pathLine) { pathLine.remove(); pathLine = null; }
+  if (pts.length >= 2) {
+    pathLine = L.polyline(pts).addTo(map);
+  }
+}
+
+function togglePath() {
+  showPath = !showPath;
+  document.getElementById('pathState').textContent = showPath ? 'Hide' : 'Show';
+  if (showPath) drawPath(); else if (pathLine) { pathLine.remove(); pathLine = null; }
+}
+
+init();
+refreshNow();
+setInterval(refreshNow, 5000);
+</script>
+</body>
+</html>
